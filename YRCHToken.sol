@@ -24,13 +24,11 @@ contract YRCHToken is IERC20{
         balances[founder] = totalSupply;
     }
     
-    
     function balanceOf(address tokenOwner) public view override returns (uint balance){
         return balances[tokenOwner];
-    }
+    }    
     
-    
-    function transfer(address to, uint tokens) public override returns(bool success){
+    function transfer(address to, uint tokens) public virtual override returns(bool success){
         require(balances[msg.sender] >= tokens);
         
         balances[to] += tokens;
@@ -57,7 +55,7 @@ contract YRCHToken is IERC20{
     }
     
     
-    function transferFrom(address from, address to, uint tokens) public override returns (bool success){
+    function transferFrom(address from, address to, uint tokens) public virtual override returns (bool success){
          require(allowed[from][to] >= tokens);
          require(balances[from] >= tokens);
          

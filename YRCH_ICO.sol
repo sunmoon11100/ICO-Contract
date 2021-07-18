@@ -4,6 +4,10 @@ pragma solidity >=0.5.0 <0.9.0;
 
 import './YRCHToken.sol';
 
+/**
+* @title Yarchi ICO
+* @dev YRCH Tokens ICO contract
+*/
 contract YRCH_ICO is YRCHToken{
     address admin;
     address payable deposit;
@@ -18,16 +22,28 @@ contract YRCH_ICO is YRCHToken{
     enum State{beforeStart, running, ended, halted}
     State public state;
 
+    /**
+     * MODIFIER ONLY ADMIN
+     * @dev Modifier that restrict anyone to act
+     */
     modifier onlyAdmin(){
         require(msg.sender == admin);
         _;
     }
 
+    /**
+     * MODIFIER NOT ADMIN
+     * @dev Modifier that restrict admin to act
+     */
     modifier notAdmin(){
         require(msg.sender != admin);
         _;
     }
 
+    /**
+     * INVEST EVENT
+     * @dev Event that acts if someone did investment
+     */
     event Invest(address _investor, uint _value, uint _tokens);
 
     constructor(address _admin, address payable _deposit){
@@ -44,14 +60,44 @@ contract YRCH_ICO is YRCHToken{
         state = State.beforeStart;
     }
 
-    function invest() payable public notAdmin returns(address){
-
+    /**
+     * INVEST FUNCTION
+     * @dev Main function ICO - makes ICO owners happy!
+     */
+    function invest() payable public notAdmin returns(bool){
+        require(block.timestamp >= dateStartICO);
+        require(state == State.running);
+        require(balances[msg.sender] * price < maxInv);
+        uint tokensCount;
+        tokensCount = msg.value / price;
+        balances[msg.sender] += tokensCount;
+        balances[founder] -= tokensCount;
+        
+        deposit.transfer(msg.value);
+        emit Invest(msg.sender, msg.value, tokensCount);
+        return true;
     }
 
+    /**
+     * RECEIVER FUNCTION
+     * @dev Default receive function
+     */
     receive() payable external{
         invest();
     }
+    
+    /**
+     * REMAINDER INVESTMENT
+     * @dev A way to know your remainder investment (max is @param maxInv wei)
+     */
+    function remainderInvestment() public view returns(uint){
+        return maxInv - (balances[msg.sender] * price);
+    }
 
+    /**
+     * GET CURRENT STATE
+     * @dev Get current ICO status
+     */
     function getStatus() public view returns(string memory){
         string memory result;
         if(state == State.beforeStart){
@@ -65,16 +111,70 @@ contract YRCH_ICO is YRCHToken{
 
         return result;
     }
-
-    function burn() public notAdmin returns(bool){
-
+    
+    /**
+     * SET STATE TO HALTED
+     * @dev A button to emergency stop ICO
+     */
+    function halt() public onlyAdmin{
+        state = State.halted;
     }
 
+    /**
+     * RESUME ICO
+     * @dev A button to resume ICO
+     */
+    function resume() public onlyAdmin{
+        state = State.running;
+    }
     
+    /**
+     * SET STATE TO END
+     * @dev A cheatcode to end ICO
+     */
+    function end() public onlyAdmin{
+        state = State.ended;
+    }
 
+    /**
+     * BURN FUNCTION
+     * @dev Burn em all! Destroy remainder tokens!
+     */
+    function burn() public notAdmin returns(bool){
+        require(state == State.ended);
+        balances[founder] = 0;
 
+        return true;
+    }
 
-    
+    /**
+     * CHANGE DEPOSIT
+     * @dev Change deposit address to @param _newDeposit
+     */
+    function changeDeposit(address payable _newDeposit) public onlyAdmin returns(bool){
+        require(state == State.halted);
+        deposit = _newDeposit;
+        return deposit == _newDeposit;
+    }
 
+    /**
+     * TRANSFER TO
+     * @dev Transfer @param tokens tokens from owner to @param to
+     */
 
+    function transfer(address to, uint tokens) public override returns(bool success){
+        require(block.timestamp >= dateUnlock);
+        super.transfer(to, tokens);
+        return true;
+    }
+
+    /**
+     * TRANSFER FROM TO
+     *  @dev Transfer @param tokens tokens to @param to behalf @param from
+     */
+    function transferFrom(address from, address to, uint tokens) public override returns (bool success){
+        require(block.timestamp >= dateUnlock);
+        super.transferFrom(from, to, tokens);
+        return true;
+    }
 }
